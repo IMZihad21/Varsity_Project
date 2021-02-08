@@ -11,7 +11,7 @@ int usecho1 = 32;
 int usecho2 = 33;
 
 // Required VARs
-float distance, duration;
+float dist1, dist2, dura1, dura2;
 
 void setup(){
   // Serial COM port
@@ -40,16 +40,36 @@ void loop(){
   delay(5);
   digitalWrite(ustrig1, LOW);
   
-  // Calculate Distance
-  duration = pulseIn(usecho1, HIGH);
-  distance = (duration / 2) * 0.0343;
-  Serial.print("Distance = ");
-  if ( distance >= 400 || distance <= 10) {
+  // Calculate Distance 1
+  dura1 = pulseIn(usecho1, HIGH);
+  dist1 = (dura1 / 2) * 0.0343;
+  
+  // Triggering Ultrasonic 2
+  digitalWrite(ustrig2, HIGH);
+  delay(5);
+  digitalWrite(ustrig2, LOW);
+  
+  // Calculate Distance 2
+  dura2 = pulseIn(usecho2, HIGH);
+  dist2 = (dura2 / 2) * 0.0343;
+  
+  Serial.print("Distance 1 = ");
+  if ( dist1 >= 400 || dist1 <= 10 ) {
     digitalWrite(alarm, HIGH);
-    delay(400);
+    delay(250);
     Serial.println("Out of range!");
   }
   else{
-    Serial.println(distance);
+    Serial.println(dist1);
+  }
+  
+  Serial.print("Distance 2 = ");
+  if ( dist2 >= 400 || dist2 <= 10 ) {
+    digitalWrite(alarm, HIGH);
+    delay(250);
+    Serial.println("Out of range!");
+  }
+  else{
+    Serial.println(dist2);
   }
 }
