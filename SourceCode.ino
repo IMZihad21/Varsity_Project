@@ -9,6 +9,7 @@ int ustrig1 = 30;
 int ustrig2 = 31;
 int usecho1 = 32;
 int usecho2 = 33;
+int flame1 = 24;
 
 // Required VARs
 float dist1, dist2, dura1, dura2;
@@ -25,6 +26,7 @@ void setup(){
   pinMode(ustrig2, OUTPUT);
   pinMode(usecho1, INPUT);
   pinMode(usecho2, INPUT);
+  pinMode(flame1, INPUT);
 
   Serial.println("Setup Complete, Initializing Loop");
 }
@@ -71,5 +73,11 @@ void loop(){
   }
   else{
     Serial.println(dist2);
+  }
+
+  // Check for Fire
+  if ( digitalRead(flame1) == LOW){
+    digitalWrite(alarm, HIGH);
+    delay(250);
   }
 }
