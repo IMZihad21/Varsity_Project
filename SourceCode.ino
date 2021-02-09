@@ -1,83 +1,150 @@
-// Autonomous Fire-Fighting Robot Source Code
-// Author: Md. Mofajjal Rasul Jehad 
+// Initialize pins
 //
-// Alarm Buzzer
-int alarm = 22;
+// Wheel Motors
+const int motorFrontL = 9;   // Front Left Motor
+const int motorFrontR = 8;   // Front Right Motor
+const int motorBackL = 10;   // Back Left Motor
+const int motorBackR = 11;   // Back Right Motor
 
-// Ultrasonic Sensors
-int ustrig1 = 30;
-int ustrig2 = 31;
-int usecho1 = 32;
-int usecho2 = 33;
-int flame1 = 24;
+// UltraSonic Sensors
+const int trigPinL = 32;    // Ultrasonic Trig Pin
+const int trigPinR = 33;    // Ultrasonic Trig Pin
+const int echoPinL = 30;     // Left Ultrasonic Echo Pin
+const int echoPinR = 31;      // Right Ultrasonic Echo Pin
+long durationL, durationR;
+int distanceL, distanceR;
 
-// Required VARs
-float dist1, dist2, dura1, dura2;
+// Buzzer
+const int buzz = 22;          // Buzzer Trigger Pin
+
+// Flame Sensors
+const int LflameAO = 4;     // Left Flame Analog Pin
+const int LflameDO = 40;     // Left Flame Digital Pin
+const int MflameAO = 4;     // Middle Flame Analog Pin
+const int MflameDO = 42;     // Middle Flame Digital Pin
+const int RflameAO = 4;     // Right Flame Analog Pin
+const int RflameDO = 44;     // Right Flame Digital Pin
+
 
 void setup(){
-  // Serial COM port
-  Serial.begin (9600);
-  Serial.println("System online!");
+  // Setup Pin Modes
+  pinMode(motorFrontL, OUTPUT);
+  pinMode(motorFrontR, OUTPUT);
+  pinMode(motorBackL, OUTPUT);
+  pinMode(motorBackR, OUTPUT);
+  pinMode(trigPinL, OUTPUT);
+  pinMode(trigPinR, OUTPUT);
+  pinMode(echoPinL, INPUT);
+  pinMode(echoPinR, INPUT);
+  pinMode(LflameDO, INPUT);
+  pinMode(MflameDO, INPUT);
+  pinMode(RflameDO, INPUT);
+  pinMode(buzz, OUTPUT);
 
-  // Setup Pins
-  Serial.println("Initializing PINs");
-  pinMode(alarm, OUTPUT);
-  pinMode(ustrig1, OUTPUT);
-  pinMode(ustrig2, OUTPUT);
-  pinMode(usecho1, INPUT);
-  pinMode(usecho2, INPUT);
-  pinMode(flame1, INPUT);
-
-  Serial.println("Setup Complete, Initializing Loop");
+  // Serial COM
+  Serial.begin(9600);
+  digitalWrite(buzz, HIGH);           // Notify about Standby Mode
+  delay(50);
+  digitalWrite(buzz, LOW);
+  delay(100);
 }
 
 void loop(){
-  // Setup Others
-  digitalWrite(alarm, LOW);
-  digitalWrite(ustrig1, LOW);
-  digitalWrite(ustrig2, LOW);
-  
-  // Triggering Ultrasonic 1
-  digitalWrite(ustrig1, HIGH);
-  delay(5);
-  digitalWrite(ustrig1, LOW);
-  
-  // Calculate Distance 1
-  dura1 = pulseIn(usecho1, HIGH);
-  dist1 = (dura1 / 2) * 0.0343;
-  
-  // Triggering Ultrasonic 2
-  digitalWrite(ustrig2, HIGH);
-  delay(5);
-  digitalWrite(ustrig2, LOW);
-  
-  // Calculate Distance 2
-  dura2 = pulseIn(usecho2, HIGH);
-  dist2 = (dura2 / 2) * 0.0343;
-  
-  Serial.print("Distance 1 = ");
-  if ( dist1 >= 400 || dist1 <= 10 ) {
-    digitalWrite(alarm, HIGH);
-    delay(250);
-    Serial.println("Out of range!");
+  // Set Sensors to Standby
+  digitalWrite(trigPinL, LOW);
+  digitalWrite(trigPinR, LOW);
+  digitalWrite(LflameDO, HIGH);
+  digitalWrite(MflameDO, HIGH);
+  digitalWrite(RflameDO, HIGH);
+  delay(1000);
+
+  if ( isfire() == 0 ){
+    Serial.println("No fire detected!");
   }
-  else{
-    Serial.println(dist1);
+  else if ( isfire() == 1 ) {
+    digitalWrite(buzz, HIGH);
+    delay(100);
+    digitalWrite(buzz, LOW);
+    delay(100);
+    Serial.println("Left side fire");
   }
-  
-  Serial.print("Distance 2 = ");
-  if ( dist2 >= 400 || dist2 <= 10 ) {
-    digitalWrite(alarm, HIGH);
-    delay(250);
-    Serial.println("Out of range!");
+  else if ( isfire() == 2 ) {
+    digitalWrite(buzz, HIGH);
+    delay(200);
+    digitalWrite(buzz, LOW);
+    delay(100);
+    Serial.println("Middle fire");
   }
-  else{
-    Serial.println(dist2);
+  else if ( isfire() == 3 ) {
+    digitalWrite(buzz, HIGH);
+    delay(300);
+    digitalWrite(buzz, LOW);
+    delay(100);
+    Serial.println("Right side fire");
   }
 
-  // Check for Fire
-  if ( digitalRead(flame1) == LOW){
-    digitalWrite(alarm, HIGH);
-    delay(250);
+  if ( obstacle() == 0 ) {
+    Serial.println("No obstacles");
+  }
+  else if ( obstacle() == 1 ) {
+    Serial.println("Obstacles on left");
+    Serial.print("Left distance: ");
+    Serial.println(distanceL);
+    digitalWrite(buzz, HIGH);
+    delay(100);
+    digitalWrite(buzz, LOW);
+    delay(100);
+  }
+  else if ( obstacle() == 2 ) {
+    Serial.println("Obstacles on right");
+    Serial.print("Right distance: ");
+    Serial.println(distanceR);
+    digitalWrite(buzz, HIGH);
+    delay(200);
+    digitalWrite(buzz, LOW);
+    delay(100);
+  }
+}
+
+int obstacle(){
+  // Trigger Ultrasonics
+  digitalWrite(trigPinL, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPinL, LOW);
+  
+  durationL = pulseIn(echoPinL, HIGH);
+  distanceL = durationL * 0.034 / 2;
+  
+  digitalWrite(trigPinR, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPinR, LOW);
+  durationR = pulseIn(echoPinR, HIGH);
+  distanceR = durationR * 0.034 / 2;
+
+  // Check for obstacles
+  if ( distanceL <= 5 ){
+    return 1;
+  }
+  else if ( distanceR <= 5 ){
+    return 2;
+  }
+  else{
+    return 0;
+  }
+}
+
+int isfire(){
+  // Check Flame Sensor
+  if ( digitalRead(MflameDO) == LOW ) {
+    return 2;
+  }
+  else if ( digitalRead(LflameDO) == LOW ){
+    return 1;
+  }
+  else if ( digitalRead(RflameDO) == LOW ) {
+    return 3;
+  }
+  else {
+    return 0;
   }
 }
