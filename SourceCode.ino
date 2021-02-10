@@ -9,21 +9,24 @@ const int motorBackR = 11;   // Back Right Motor
 // UltraSonic Sensors
 const int trigPinL = 32;    // Ultrasonic Trig Pin
 const int trigPinR = 33;    // Ultrasonic Trig Pin
-const int echoPinL = 30;     // Left Ultrasonic Echo Pin
-const int echoPinR = 31;      // Right Ultrasonic Echo Pin
+const int echoPinL = 30;    // Left Ultrasonic Echo Pin
+const int echoPinR = 31;    // Right Ultrasonic Echo Pin
 long durationL, durationR;
 int distanceL, distanceR;
 
 // Buzzer
-const int buzz = 22;          // Buzzer Trigger Pin
+const int buzz = 22;        // Buzzer Trigger Pin
+
+// Water Pump
+const int pump = 22;        // Water Pump Trigger Pin
 
 // Flame Sensors
-const int LflameAO = 4;     // Left Flame Analog Pin
-const int LflameDO = 40;     // Left Flame Digital Pin
-const int MflameAO = 4;     // Middle Flame Analog Pin
-const int MflameDO = 42;     // Middle Flame Digital Pin
-const int RflameAO = 4;     // Right Flame Analog Pin
-const int RflameDO = 44;     // Right Flame Digital Pin
+const int flameMainAnalog = A7;     // Middle Flame Analog Pin
+const int flameLeftAnalog = A7;     // Middle Flame Analog Pin
+const int flameRightAnalog = A7;     // Middle Flame Analog Pin
+const int flameMain = 42;    // Middle Flame Digital Pin
+const int flameLeft = 40;    // Left Flame Digital Pin
+const int flameRight = 44;    // Right Flame Digital Pin
 
 
 void setup(){
@@ -36,9 +39,9 @@ void setup(){
   pinMode(trigPinR, OUTPUT);
   pinMode(echoPinL, INPUT);
   pinMode(echoPinR, INPUT);
-  pinMode(LflameDO, INPUT);
-  pinMode(MflameDO, INPUT);
-  pinMode(RflameDO, INPUT);
+  pinMode(flameLeft, INPUT);
+  pinMode(flameMain, INPUT);
+  pinMode(flameRight, INPUT);
   pinMode(buzz, OUTPUT);
 
   // Serial COM
@@ -53,56 +56,89 @@ void loop(){
   // Set Sensors to Standby
   digitalWrite(trigPinL, LOW);
   digitalWrite(trigPinR, LOW);
-  digitalWrite(LflameDO, HIGH);
-  digitalWrite(MflameDO, HIGH);
-  digitalWrite(RflameDO, HIGH);
+  digitalWrite(flameLeft, HIGH);
+  digitalWrite(flameMain, HIGH);
+  digitalWrite(flameRight, HIGH);
   delay(1000);
 
-  if ( isfire() == 0 ){
-    Serial.println("No fire detected!");
-  }
-  else if ( isfire() == 1 ) {
-    digitalWrite(buzz, HIGH);
-    delay(100);
-    digitalWrite(buzz, LOW);
-    delay(100);
-    Serial.println("Left side fire");
-  }
-  else if ( isfire() == 2 ) {
-    digitalWrite(buzz, HIGH);
+  // Start Main Loop
+  switch ( checkfire() ){
+    case 1:
+    Serial.println("Fire detected in left sensor, turning left..");
+    navigate(3);
     delay(200);
-    digitalWrite(buzz, LOW);
-    delay(100);
-    Serial.println("Middle fire");
-  }
-  else if ( isfire() == 3 ) {
-    digitalWrite(buzz, HIGH);
-    delay(300);
-    digitalWrite(buzz, LOW);
-    delay(100);
-    Serial.println("Right side fire");
-  }
+    break;
 
-  if ( obstacle() == 0 ) {
-    Serial.println("No obstacles");
-  }
-  else if ( obstacle() == 1 ) {
-    Serial.println("Obstacles on left");
-    Serial.print("Left distance: ");
-    Serial.println(distanceL);
-    digitalWrite(buzz, HIGH);
-    delay(100);
-    digitalWrite(buzz, LOW);
-    delay(100);
-  }
-  else if ( obstacle() == 2 ) {
-    Serial.println("Obstacles on right");
-    Serial.print("Right distance: ");
-    Serial.println(distanceR);
-    digitalWrite(buzz, HIGH);
+    case 2:
+    Serial.println("Fire Detected in Main Sensor, moving toward fire..");
+    while( analogRead(flameMainAnalog) >= 30 ) {
+      switch( obstacle() ){
+        case 1:
+        navigate(2);
+        navigate(1);
+        delay(300);
+        break;
+
+        case 2:
+        navigate(3);
+        navigate(1);
+        delay(300); 
+        break;
+
+        default:
+        navigate(1);
+        delay(300); 
+      }
+    }
+    while( digitalRead(flameMain) == LOW ) {
+      Serial.println("Starting Water Spray");
+      pumpwater();
+    }
+    break;
+
+    case 3:
+    Serial.println("Fire detected in right sensor, turning right..");
+    navigate(2);
     delay(200);
-    digitalWrite(buzz, LOW);
-    delay(100);
+    break;
+
+    default:
+    Serial.println("No fire detected! Waiting in standby mode.");
+ }
+
+}
+
+// Additional Tasks
+
+int navigate( int c ){
+  switch(c){
+    case 1:
+    digitalWrite(motorFrontL, HIGH);
+    digitalWrite(motorFrontR, HIGH);
+    digitalWrite(motorBackL, HIGH);
+    digitalWrite(motorBackR, HIGH);
+    delay(500);
+    digitalWrite(motorFrontL, LOW);
+    digitalWrite(motorFrontR, LOW);
+    digitalWrite(motorBackL, LOW);
+    digitalWrite(motorBackR, LOW);
+    break;
+
+    case 2:
+    digitalWrite(motorFrontR, HIGH);
+    digitalWrite(motorBackR, HIGH);
+    delay(500);
+    digitalWrite(motorFrontR, LOW);
+    digitalWrite(motorBackR, LOW);
+    break;
+
+    case 3:
+    digitalWrite(motorFrontL, HIGH);
+    digitalWrite(motorBackL, HIGH);
+    delay(500);
+    digitalWrite(motorFrontL, LOW);
+    digitalWrite(motorBackL, LOW);
+    break;
   }
 }
 
@@ -133,18 +169,26 @@ int obstacle(){
   }
 }
 
-int isfire(){
-  // Check Flame Sensor
-  if ( digitalRead(MflameDO) == LOW ) {
-    return 2;
+int checkfire(){
+  // Check Flame Sensor Data
+  if ( analogRead(flameLeftAnalog) <= 1000 || analogRead(flameMainAnalog) <= 1000 || analogRead(flameRightAnalog) <= 1000 ) 
+  {
+    if ( analogRead(flameMainAnalog) < analogRead(flameLeftAnalog) && analogRead(flameMainAnalog) < analogRead(flameRightAnalog) ) 
+      return 2;
+    else if ( analogRead(flameLeftAnalog) < analogRead(flameMainAnalog) && analogRead(flameLeftAnalog) < analogRead(flameRightAnalog) ) 
+      return 1;
+    else if ( analogRead(flameRightAnalog) < analogRead(flameMainAnalog) && analogRead(flameRightAnalog) < analogRead(flameLeftAnalog) ) 
+      return 3;
   }
-  else if ( digitalRead(LflameDO) == LOW ){
-    return 1;
-  }
-  else if ( digitalRead(RflameDO) == LOW ) {
-    return 3;
-  }
-  else {
-    return 0;
-  }
+}
+
+int pumpwater(){
+  digitalWrite(buzz, HIGH);
+  delay(500);
+  digitalWrite(buzz, LOW);
+  delay(100);
+  digitalWrite(pump, HIGH);
+  delay(5000);
+  digitalWrite(pump, LOW);
+  delay(100);
 }
