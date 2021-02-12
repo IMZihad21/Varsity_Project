@@ -17,8 +17,8 @@ const int echoPinR = 33;    // Right Ultrasonic Echo Pin
 long durationL, durationR;
 int distanceL, distanceR;
 
-// buzzerer
-const int buzzer = 22;        // buzzerer Trigger Pin
+// buzzer
+const int buzzer = 22;        // buzzer Trigger Pin
 
 // Water Pump
 const int pump = 52;        // Water Pump Trigger Pin
