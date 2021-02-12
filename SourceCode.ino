@@ -1,3 +1,6 @@
+// Include prebuilt library supports
+#include <Servo.h>   // Servo motor library header
+
 // Initialize pins
 //
 // Wheel Motors
@@ -7,98 +10,122 @@ const int motorBackL = 10;   // Back Left Motor
 const int motorBackR = 11;   // Back Right Motor
 
 // UltraSonic Sensors
-const int trigPinL = 32;    // Ultrasonic Trig Pin
-const int trigPinR = 33;    // Ultrasonic Trig Pin
-const int echoPinL = 30;    // Left Ultrasonic Echo Pin
-const int echoPinR = 31;    // Right Ultrasonic Echo Pin
+const int trigPinL = 30;    // Ultrasonic Trig Pin
+const int trigPinR = 31;    // Ultrasonic Trig Pin
+const int echoPinL = 32;    // Left Ultrasonic Echo Pin
+const int echoPinR = 33;    // Right Ultrasonic Echo Pin
 long durationL, durationR;
 int distanceL, distanceR;
 
-// Buzzer
-const int buzz = 22;        // Buzzer Trigger Pin
+// buzzerer
+const int buzzer = 22;        // buzzerer Trigger Pin
 
 // Water Pump
-const int pump = 22;        // Water Pump Trigger Pin
+const int pump = 52;        // Water Pump Trigger Pin
 
 // Flame Sensors
-const int flameMainAnalog = A7;     // Middle Flame Analog Pin
-const int flameLeftAnalog = A7;     // Middle Flame Analog Pin
-const int flameRightAnalog = A7;     // Middle Flame Analog Pin
-const int flameMain = 42;    // Middle Flame Digital Pin
+const int flameMainAnalog = A11;     // Middle Flame Analog Pin
+const int flameLeftAnalog = A10;     // Middle Flame Analog Pin
+const int flameRightAnalog = A12;     // Middle Flame Analog Pin
+const int flameMain = 41;    // Middle Flame Digital Pin
 const int flameLeft = 40;    // Left Flame Digital Pin
-const int flameRight = 44;    // Right Flame Digital Pin
+const int flameRight = 42;    // Right Flame Digital Pin
 
+// Servo Motor
+Servo myservo;               // Create servo object 
+int pos = 90;                 // Store servo position 
 
 void setup(){
-  // Setup Pin Modes
+  // Serial COM
+  Serial.begin(9600);
+  Serial.println("System Booted!");   // Notify about Standby Boot
+  alertTone();
+
+  Serial.println("Setup Pin Modes"); // Setup Pin Modes
   pinMode(motorFrontL, OUTPUT);
   pinMode(motorFrontR, OUTPUT);
   pinMode(motorBackL, OUTPUT);
   pinMode(motorBackR, OUTPUT);
   pinMode(trigPinL, OUTPUT);
   pinMode(trigPinR, OUTPUT);
+  pinMode(buzzer, OUTPUT);
+  pinMode(pump, OUTPUT);
   pinMode(echoPinL, INPUT);
   pinMode(echoPinR, INPUT);
   pinMode(flameLeft, INPUT);
   pinMode(flameMain, INPUT);
   pinMode(flameRight, INPUT);
-  pinMode(buzz, OUTPUT);
 
-  // Serial COM
-  Serial.begin(9600);
-  digitalWrite(buzz, HIGH);           // Notify about Standby Mode
-  delay(50);
-  digitalWrite(buzz, LOW);
-  delay(100);
+  myservo.attach(9);                 // attach the servo on pin 9
 }
 
 void loop(){
-  // Set Sensors to Standby
+  // Set Devices to Standby
+  digitalWrite(buzzer, LOW);
   digitalWrite(trigPinL, LOW);
   digitalWrite(trigPinR, LOW);
   digitalWrite(flameLeft, HIGH);
   digitalWrite(flameMain, HIGH);
   digitalWrite(flameRight, HIGH);
-  delay(1000);
+  myservo.write(pos);
+  delay(500);
 
   // Start Main Loop
   switch ( checkfire() ){
     case 1:
     Serial.println("Fire detected in left sensor, turning left..");
-    navigate(3);
+    alertTone();
+    moveForward();
+    moveLeft();
     delay(200);
     break;
 
     case 2:
-    Serial.println("Fire Detected in Main Sensor, moving toward fire..");
-    while( analogRead(flameMainAnalog) >= 30 ) {
+    Serial.println("Fire Detected in Main Sensor, Checking obstacles..");
+    alertTone();
+    if( analogRead(flameMainAnalog) >= 35 ) {
       switch( obstacle() ){
         case 1:
-        navigate(2);
-        navigate(1);
+        Serial.println("Obstacle on left."); // Obstacle on left.
+        moveRight();
+        moveForward();
+        moveForward();
+        moveLeft();
         delay(300);
         break;
 
         case 2:
-        navigate(3);
-        navigate(1);
+        Serial.println("Obstacle on right."); // Obstacle on right.
+        moveLeft();
+        moveForward();
+        moveForward();
+        moveRight();
         delay(300); 
         break;
 
         default:
-        navigate(1);
+        Serial.println("No obstacles. Moving Forward!");
+        moveForward();
         delay(300); 
       }
     }
     while( digitalRead(flameMain) == LOW ) {
       Serial.println("Starting Water Spray");
-      pumpwater();
+      pumpStart();
+      Serial.println("Starting Servo to spread water spray");
+      while( digitalRead(flameMain) == LOW ) {
+        servoControl();
+      }
+      pumpStop();
+      alertTone();
     }
     break;
 
     case 3:
     Serial.println("Fire detected in right sensor, turning right..");
-    navigate(2);
+    alertTone();
+    moveForward();
+    moveRight();
     delay(200);
     break;
 
@@ -110,36 +137,32 @@ void loop(){
 
 // Additional Tasks
 
-int navigate( int c ){
-  switch(c){
-    case 1:
-    digitalWrite(motorFrontL, HIGH);
-    digitalWrite(motorFrontR, HIGH);
-    digitalWrite(motorBackL, HIGH);
-    digitalWrite(motorBackR, HIGH);
-    delay(500);
-    digitalWrite(motorFrontL, LOW);
-    digitalWrite(motorFrontR, LOW);
-    digitalWrite(motorBackL, LOW);
-    digitalWrite(motorBackR, LOW);
-    break;
+int moveForward() {
+  digitalWrite(motorFrontL, HIGH);
+  digitalWrite(motorFrontR, HIGH);
+  digitalWrite(motorBackL, HIGH);
+  digitalWrite(motorBackR, HIGH);
+  delay(500);
+  digitalWrite(motorFrontL, LOW);
+  digitalWrite(motorFrontR, LOW);
+  digitalWrite(motorBackL, LOW);
+  digitalWrite(motorBackR, LOW);
+}
 
-    case 2:
-    digitalWrite(motorFrontR, HIGH);
-    digitalWrite(motorBackR, HIGH);
-    delay(500);
-    digitalWrite(motorFrontR, LOW);
-    digitalWrite(motorBackR, LOW);
-    break;
+int moveLeft(){
+  digitalWrite(motorFrontR, HIGH);
+  digitalWrite(motorBackR, HIGH);
+  delay(500);
+  digitalWrite(motorFrontR, LOW);
+  digitalWrite(motorBackR, LOW);
+}
 
-    case 3:
-    digitalWrite(motorFrontL, HIGH);
-    digitalWrite(motorBackL, HIGH);
-    delay(500);
-    digitalWrite(motorFrontL, LOW);
-    digitalWrite(motorBackL, LOW);
-    break;
-  }
+int moveRight(){
+  digitalWrite(motorFrontL, HIGH);
+  digitalWrite(motorBackL, HIGH);
+  delay(500);
+  digitalWrite(motorFrontL, LOW);
+  digitalWrite(motorBackL, LOW);
 }
 
 int obstacle(){
@@ -171,24 +194,54 @@ int obstacle(){
 
 int checkfire(){
   // Check Flame Sensor Data
-  if ( analogRead(flameLeftAnalog) <= 1000 || analogRead(flameMainAnalog) <= 1000 || analogRead(flameRightAnalog) <= 1000 ) 
+  if ( analogRead(flameLeftAnalog) <= 900 || analogRead(flameMainAnalog) <= 900 || analogRead(flameRightAnalog) <= 900 ) 
   {
-    if ( analogRead(flameMainAnalog) < analogRead(flameLeftAnalog) && analogRead(flameMainAnalog) < analogRead(flameRightAnalog) ) 
-      return 2;
-    else if ( analogRead(flameLeftAnalog) < analogRead(flameMainAnalog) && analogRead(flameLeftAnalog) < analogRead(flameRightAnalog) ) 
+    if ( analogRead(flameLeftAnalog) < analogRead(flameMainAnalog) && analogRead(flameLeftAnalog) < analogRead(flameRightAnalog) ) 
       return 1;
+    else if ( analogRead(flameMainAnalog) < analogRead(flameLeftAnalog) && analogRead(flameMainAnalog) < analogRead(flameRightAnalog) ) 
+      return 2;
     else if ( analogRead(flameRightAnalog) < analogRead(flameMainAnalog) && analogRead(flameRightAnalog) < analogRead(flameLeftAnalog) ) 
       return 3;
   }
+  else
+    return 0;
 }
 
-int pumpwater(){
-  digitalWrite(buzz, HIGH);
-  delay(500);
-  digitalWrite(buzz, LOW);
-  delay(100);
+int pumpStart(){
   digitalWrite(pump, HIGH);
-  delay(5000);
-  digitalWrite(pump, LOW);
-  delay(100);
+  delay(15);
+}
+
+int pumpStop(){
+    digitalWrite(pump, LOW);
+    delay(15);
+}
+
+int servoControl(){
+  for(pos = 90; pos > 45; pos -= 1)
+  {
+    myservo.write(pos);
+    delay(20);
+  } 
+  for(pos = 45; pos <= 90; pos += 1)
+  {
+    myservo.write(pos);
+    delay(20);
+  }
+  for(pos = 90; pos < 135; pos += 1)
+  {
+    myservo.write(pos);
+    delay(20);
+  } 
+  for(pos = 135; pos >= 90; pos -= 1)
+  {
+    myservo.write(pos);
+    delay(20);
+  }
+}
+
+int alertTone(){
+  tone(buzzer, 500, 100);
+  delay(200);
+  tone(buzzer, 1000, 250);
 }
