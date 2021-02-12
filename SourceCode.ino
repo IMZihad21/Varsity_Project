@@ -17,8 +17,8 @@ const int echoPinR = 33;    // Right Ultrasonic Echo Pin
 long durationL, durationR;
 int distanceL, distanceR;
 
-// buzzer
-const int buzzer = 22;        // buzzer Trigger Pin
+// buzzerer
+const int buzzer = 22;        // buzzerer Trigger Pin
 
 // Water Pump
 const int pump = 52;        // Water Pump Trigger Pin
@@ -33,7 +33,7 @@ const int flameRight = 42;    // Right Flame Digital Pin
 
 // Servo Motor
 Servo myservo;               // Create servo object 
-int pos = 90;                 // Store servo position 
+int pos = 80;                 // Store servo position 
 
 void setup(){
   // Serial COM
@@ -218,22 +218,22 @@ int pumpStop(){
 }
 
 int servoControl(){
-  for(pos = 90; pos > 45; pos -= 1)
+  for(pos = 80; pos > 35; pos--)
   {
     myservo.write(pos);
     delay(20);
   } 
-  for(pos = 45; pos <= 90; pos += 1)
+  for(pos = 35; pos <= 80; pos++)
   {
     myservo.write(pos);
     delay(20);
   }
-  for(pos = 90; pos < 135; pos += 1)
+  for(pos = 80; pos < 125; pos++)
   {
     myservo.write(pos);
     delay(20);
   } 
-  for(pos = 135; pos >= 90; pos -= 1)
+  for(pos = 125; pos >= 80; pos--)
   {
     myservo.write(pos);
     delay(20);
